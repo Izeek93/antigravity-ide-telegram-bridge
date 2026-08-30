@@ -1,0 +1,37 @@
+# Secrets and sensitive configs
+secrets.json
+*.env
+*.key
+*.token
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Media and temporary attachments
+media/
+*.ogg
+*.mp3
+*.png
+*.jpg
+*.jpeg
+*.wav
+*.dat
+
+# Local runtime state
+active_chat.json
+inbox.json
+queue.json
+errors.log
+*.log
+
+# System files
+.DS_Store
+Thumbs.db

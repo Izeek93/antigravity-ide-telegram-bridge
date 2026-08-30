@@ -1,0 +1,14 @@
+# Core Telegram & Google Gemini API
+google-genai>=0.1.1
+pillow>=10.0.0
+torch>=2.0.0
+torchaudio>=2.0.0
+
+# Speech-to-Text (STT) on CUDA / CPU
+faster-whisper>=1.0.0
+
+# Text-to-Speech (TTS) Universal Fallback
+edge-tts>=7.0.0
+
+# System utilities
+psutil>=5.9.0
