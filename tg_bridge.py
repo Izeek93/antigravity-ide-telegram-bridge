@@ -224,6 +224,34 @@ def handle_message(msg: dict):
 
     clean_text = (msg.get("text") or msg.get("caption") or "").strip().lower()
 
+    # Remote approval handler for interactive IDE requests
+    APPROVAL_AFFIRMATIVE = {"да", "подтверждаю", "разрешаю", "ок", "выполняй", "approve", "/approve", "/yes", "1"}
+    APPROVAL_NEGATIVE = {"нет", "отмена", "отклонить", "не надо", "reject", "/reject", "/no", "0"}
+    if clean_text in APPROVAL_AFFIRMATIVE or clean_text in APPROVAL_NEGATIVE:
+        try:
+            shared_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "shared_ai"))
+            if shared_dir not in sys.path:
+                sys.path.insert(0, shared_dir)
+            from remote_approval_manager import get_pending_approval, resolve_approval
+            pending = get_pending_approval()
+            if pending:
+                decision = clean_text in APPROVAL_AFFIRMATIVE
+                resolve_approval(decision)
+                res_str = "✅ **Действие подтверждено!** Передано в IDE на исполнение." if decision else "❌ **Действие отклонено.** Отменено в IDE."
+                send_message(res_str, chat_id=chat_id)
+                push_message({
+                    "source": "REMOTE_APPROVAL",
+                    "chat_id": chat_id,
+                    "user": user,
+                    "action": pending.get("action"),
+                    "approved": decision,
+                    "text": f"[{'✅ ПОДТВЕРЖДЕНО' if decision else '❌ ОТКЛОНЕНО'} через Telegram]: «{pending.get('action')}»",
+                    "timestamp": time.time()
+                })
+                return
+        except Exception as e:
+            print(f"[Remote Approval Error] {e}", file=sys.stderr)
+
     # Fast built-in button & command handlers (checked on clean_text)
     if clean_text in ["/start", "/help", "help", "старт", "помощь"]:
         send_message(
