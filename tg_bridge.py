@@ -382,6 +382,11 @@ def run_bridge():
                 time.sleep(3)
         except Exception as e:
             print(f"[Bridge Loop Error] {e}", file=sys.stderr)
+            try:
+                from incident_manager import report_bridge_incident
+                report_bridge_incident("TG_BRIDGE", str(e))
+            except Exception:
+                pass
             time.sleep(3)
 
 if __name__ == "__main__":

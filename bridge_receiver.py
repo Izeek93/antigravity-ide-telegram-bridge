@@ -7,6 +7,7 @@ if sys.stdout.encoding != 'utf-8':
 if sys.stderr.encoding != 'utf-8':
     sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 
+import json
 import http.server
 import socketserver
 import time
@@ -28,10 +29,35 @@ def print_messages(messages: list):
         print(f"    Message: {text}\n")
     print("="*55 + "\n", flush=True)
 
+def print_incident(incident: dict):
+    print("\n" + "!"*60)
+    print(f"🚨 AUTONOMOUS INCIDENT ALERT from [{incident.get('service', 'BRIDGE')}]:")
+    print(f"   Error: {incident.get('error')}")
+    if incident.get('traceback'):
+        print(f"   Traceback:\n{incident.get('traceback')}")
+    print("!"*60 + "\n", flush=True)
+
 class ReceiverHandler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
-        messages = pop_messages()
-        print_messages(messages)
+        content_length = int(self.headers.get('Content-Length', 0))
+        post_data = b""
+        if content_length > 0:
+            post_data = self.rfile.read(content_length)
+            
+        incident = None
+        if post_data:
+            try:
+                parsed = json.loads(post_data.decode("utf-8"))
+                if isinstance(parsed, dict) and parsed.get("type") == "CRITICAL_INCIDENT":
+                    incident = parsed
+            except Exception:
+                pass
+
+        if incident:
+            print_incident(incident)
+        else:
+            messages = pop_messages()
+            print_messages(messages)
 
         self.send_response(200)
         self.send_header('Content-Type', 'application/json')
@@ -52,13 +78,29 @@ class ReceiverHandler(http.server.BaseHTTPRequestHandler):
         pass
 
 def main():
-    # 1. Check queue immediately on startup
+    # 1. Check for pending incident files
+    for base_p in [os.path.dirname(__file__), os.path.join(os.path.dirname(__file__), "..", "vk-bot")]:
+        inc_file = os.path.join(base_p, "incidents.json")
+        if os.path.exists(inc_file):
+            try:
+                with open(inc_file, "r", encoding="utf-8") as f:
+                    incidents = json.load(f)
+                if incidents:
+                    for inc in incidents:
+                        print_incident(inc)
+                    with open(inc_file, "w", encoding="utf-8") as f:
+                        json.dump([], f)
+                    sys.exit(0)
+            except Exception:
+                pass
+
+    # 2. Check queue immediately on startup
     pending = pop_messages()
     if pending:
         print_messages(pending)
         sys.exit(0)
 
-    # 2. Wait for HTTP trigger if queue was empty
+    # 3. Wait for HTTP trigger if queue was empty
     socketserver.TCPServer.allow_reuse_address = True
     try:
         with socketserver.TCPServer(("127.0.0.1", RECEIVER_PORT), ReceiverHandler) as httpd:
