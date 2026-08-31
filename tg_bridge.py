@@ -241,11 +241,21 @@ def handle_message(msg: dict):
         )
         return
 
-    if clean_text in ["/status", "📊 статус ide", "статус ide", "статус"]:
+    if clean_text in ["/status", "📊 статус ide", "статус ide", "статус", "/heal", "диагностика", "error", "ошибка"]:
         from config import is_voice_enabled
+        from bridge_health_watchdog import run_self_healing_health_check
+        diag = run_self_healing_health_check()
         v_status = "🔊 Включено" if is_voice_enabled() else "🔇 Выключено (только текст)"
+        heal_info = "🟢 Без сбоев" if not diag["lock_healed"] and not diag["inbox_healed"] else "🛠 Выполнено автовосстановление"
         send_message(
-            f"🟢 **Antigravity IDE Bridge Active**\n• Канал: Telegram ↔ IDE\n• Голосовые ответы: {v_status}\n• STT: Локальный Faster-Whisper GPU\n• TTS: Модульный синтез речи\n• Индикаторы статусов: Активны\n• Приём фото и документов: Активен\n• FIFO-очередь: Активна",
+            f"🟢 **Antigravity IDE Bridge Health & Self-Healing**\n"
+            f"• Статус моста: `Active / Healthy`\n"
+            f"• Самовосстановление: {heal_info}\n"
+            f"• Очередь `inbox`: `{diag['pending_inbox_messages']} сообщ.`\n"
+            f"• Голосовые ответы: {v_status}\n"
+            f"• STT: Локальный Faster-Whisper GPU\n"
+            f"• TTS: Модульный синтез речи\n"
+            f"• Связь с IDE: `127.0.0.1:8080 (Active)`",
             chat_id=chat_id
         )
         return

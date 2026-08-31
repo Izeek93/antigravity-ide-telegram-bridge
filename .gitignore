@@ -28,6 +28,8 @@ media/
 # Local runtime state
 active_chat.json
 inbox.json
+inbox.lock
+voice_settings.json
 queue.json
 errors.log
 *.log
