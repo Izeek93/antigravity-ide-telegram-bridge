@@ -225,8 +225,14 @@ def handle_message(msg: dict):
     clean_text = (msg.get("text") or msg.get("caption") or "").strip().lower()
 
     # Remote approval handler for interactive IDE requests
-    APPROVAL_AFFIRMATIVE = {"да", "подтверждаю", "разрешаю", "ок", "выполняй", "approve", "/approve", "/yes", "1"}
-    APPROVAL_NEGATIVE = {"нет", "отмена", "отклонить", "не надо", "reject", "/reject", "/no", "0"}
+    APPROVAL_AFFIRMATIVE = {
+        "да", "подтверждаю", "разрешаю", "ок", "выполняй", "approve", "/approve", "/yes", "1",
+        "✅ подтвердить", "подтвердить", "✅ да", "подтверждаю действие"
+    }
+    APPROVAL_NEGATIVE = {
+        "нет", "отмена", "отклонить", "не надо", "reject", "/reject", "/no", "0",
+        "❌ отклонить", "отклонить", "❌ нет", "отменить"
+    }
     if clean_text in APPROVAL_AFFIRMATIVE or clean_text in APPROVAL_NEGATIVE:
         try:
             shared_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "shared_ai"))
