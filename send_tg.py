@@ -19,6 +19,7 @@ from tg_formatter import md_to_tg_html
 REMOVE_REPLY_KEYBOARD = {"remove_keyboard": True}
 
 BOT_COMMANDS = [
+    {"command": "new",    "description": "🔄 Начать новую сессию"},
     {"command": "screen", "description": "📸 Скриншот рабочего стола"},
     {"command": "voice",  "description": "🔊 Вкл/выкл голосовые ответы"},
     {"command": "limits", "description": "⏳ Квоты и телеметрия IDE"},
@@ -27,9 +28,14 @@ BOT_COMMANDS = [
     {"command": "help",   "description": "ℹ️ Справка и возможности"}
 ]
 
-def set_bot_commands() -> bool:
-    res = tg_api_post("setMyCommands", {"commands": BOT_COMMANDS})
-    return bool(res.get("ok"))
+def set_bot_commands(chat_id: int | str = None) -> bool:
+    target_chat = chat_id or get_active_chat_id()
+    tg_api_post("setMyCommands", {"commands": BOT_COMMANDS, "scope": {"type": "default"}})
+    tg_api_post("setMyCommands", {"commands": BOT_COMMANDS, "scope": {"type": "all_private_chats"}})
+    if target_chat:
+        tg_api_post("setMyCommands", {"commands": BOT_COMMANDS, "scope": {"type": "chat", "chat_id": target_chat}})
+        tg_api_post("setChatMenuButton", {"chat_id": target_chat, "menu_button": {"type": "commands"}})
+    return True
 
 
 def tg_api_post(method: str, payload: dict) -> dict:

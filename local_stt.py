@@ -15,12 +15,15 @@ def _get_direct_whisper_model(model_size: str = "large-v3-turbo"):
     if _cached_model is not None:
         return _cached_model
         
-    import torch
+    try:
+        import torch
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        compute_type = "float16" if torch.cuda.is_available() else "int8"
+    except ImportError:
+        device = "cpu"
+        compute_type = "int8"
+    
     from faster_whisper import WhisperModel
-    
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    compute_type = "float16" if torch.cuda.is_available() else "int8"
-    
     print(f"[STT] Initializing Faster-Whisper ({model_size}) on {device} ({compute_type})...")
     _cached_model = WhisperModel(model_size, device=device, compute_type=compute_type)
     return _cached_model

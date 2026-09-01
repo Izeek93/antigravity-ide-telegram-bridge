@@ -1,0 +1,39 @@
+"""
+tg-bot/session_manager.py
+=========================
+Модуль программного управления сессиями Antigravity IDE.
+Позволяет удаленно из Telegram открывать новый чистый чат/сессию в IDE
+через официальный CLI-интерфейс Antigravity (`antigravity-ide chat`).
+"""
+
+import os
+import sys
+import subprocess
+import time
+
+IDE_CMD_PATH = r"C:\Users\Mavis\AppData\Local\Programs\Antigravity IDE\bin\antigravity-ide.cmd"
+
+def start_new_ide_session(prompt: str = "Старт новой сессии через Telegram-мост.") -> bool:
+    """
+    Открывает новую сессию чата в активном окне Antigravity IDE.
+    Выполняется асинхронно без блокировки моста.
+    """
+    cmd_exe = IDE_CMD_PATH
+    if not os.path.exists(cmd_exe):
+        # Fallback поиск в PATH
+        cmd_exe = "antigravity-ide.cmd"
+
+    try:
+        # Запуск новой сессии чата в активном окне
+        args = [cmd_exe, "chat", "-r", prompt]
+        subprocess.Popen(
+            args,
+            shell=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+        )
+        return True
+    except Exception as e:
+        print(f"[SessionManager Error] Не удалось открыть сессию: {e}", file=sys.stderr)
+        return False
