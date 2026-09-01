@@ -30,10 +30,10 @@ def start_new_ide_session(prompt: str = "Старт новой сессии че
 
     try:
         # Запуск новой сессии чата в активном окне
-        args = [cmd_exe, "chat", "-r", prompt]
+        args = [cmd_exe, "chat", "-n", prompt]
         subprocess.Popen(
             args,
-            shell=True,
+            shell=False,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
