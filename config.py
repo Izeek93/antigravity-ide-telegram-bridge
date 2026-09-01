@@ -65,7 +65,10 @@ load_secrets_json()
 
 # Конфигурационные переменные
 TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "")
-RECEIVER_PORT = int(os.environ.get("RECEIVER_PORT", "8080"))
+
+# Whitelist разрешённых chat_id (пустой set = без ограничений)
+_raw_ids = os.environ.get("ALLOWED_CHAT_IDS", "1059761599")
+ALLOWED_CHAT_IDS: set[int] = {int(x.strip()) for x in _raw_ids.split(",") if x.strip()}
 
 def get_active_chat_id():
     if os.path.exists(ACTIVE_CHAT_FILE):

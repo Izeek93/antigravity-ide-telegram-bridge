@@ -15,6 +15,7 @@ from send_tg import send_message, send_photo, ActionKeeper, REMOVE_REPLY_KEYBOAR
 from screenshot import capture_desktop
 from queue_manager import push_message
 from model_lifecycle import stop_comfyui_process
+from session_manager import start_new_ide_session
 
 # Множества для удаленного интерактивного подтверждения (только при активном запросе)
 APPROVAL_AFFIRMATIVE = {
@@ -26,7 +27,7 @@ APPROVAL_NEGATIVE = {
     "❌ отклонить", "отклонить", "❌ нет", "отменить"
 }
 
-from session_manager import start_new_ide_session
+
 
 def handle_new(chat_id: int | str, user: str, args: str = "") -> bool:
     # Запускаем открытие чистого чата через CLI Antigravity

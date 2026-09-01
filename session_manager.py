@@ -9,9 +9,14 @@ tg-bot/session_manager.py
 import os
 import sys
 import subprocess
+import shutil
 import time
 
-IDE_CMD_PATH = r"C:\Users\Mavis\AppData\Local\Programs\Antigravity IDE\bin\antigravity-ide.cmd"
+IDE_CMD_PATH = os.path.expandvars(
+    r"%LOCALAPPDATA%\Programs\Antigravity IDE\bin\antigravity-ide.cmd"
+)
+if not os.path.exists(IDE_CMD_PATH):
+    IDE_CMD_PATH = shutil.which("antigravity-ide") or IDE_CMD_PATH
 
 def start_new_ide_session(prompt: str = "Старт новой сессии через Telegram-мост.") -> bool:
     """

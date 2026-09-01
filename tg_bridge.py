@@ -23,8 +23,8 @@ if sys.stdout.encoding != 'utf-8':
 if sys.stderr.encoding != 'utf-8':
     sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 
-from config import TG_BOT_TOKEN, set_active_chat
-from send_tg import send_message, send_chat_action, ActionKeeper, set_bot_commands
+from config import TG_BOT_TOKEN, set_active_chat, ALLOWED_CHAT_IDS
+from send_tg import send_message, send_chat_action, ActionKeeper, set_bot_commands, tg_api_post
 from queue_manager import push_message
 from local_stt import transcribe_local_whisper
 from model_lifecycle import ensure_watchdog_running
@@ -32,6 +32,9 @@ from command_router import dispatch_command
 
 MEDIA_DIR = os.path.join(os.path.dirname(__file__), "media")
 os.makedirs(MEDIA_DIR, exist_ok=True)
+
+_message_counter = 0
+_CLEANUP_INTERVAL = 100  # Запускать очистку медиа раз в N сообщений
 
 def cleanup_old_media(max_age_seconds: int = 86400):
     """Автоматическая очистка временных медиафайлов старше 24 часов."""
@@ -47,20 +50,9 @@ def cleanup_old_media(max_age_seconds: int = 86400):
     except Exception:
         pass
 
-def tg_api_call(method: str, params: dict = None) -> dict:
-    url = f"https://api.telegram.org/bot{TG_BOT_TOKEN}/{method}"
-    data = json.dumps(params).encode('utf-8') if params else None
-    headers = {'Content-Type': 'application/json'} if params else {}
-    req = urllib.request.Request(url, data=data, headers=headers)
-    try:
-        with urllib.request.urlopen(req, timeout=35) as resp:
-            return json.loads(resp.read().decode('utf-8'))
-    except Exception as e:
-        print(f"[Telegram API Error] {method}: {e}", file=sys.stderr)
-        return {"ok": False, "error": str(e)}
 
 def download_telegram_file(file_id: str, dest_path: str, max_retries: int = 3) -> bool:
-    info = tg_api_call("getFile", {"file_id": file_id})
+    info = tg_api_post("getFile", {"file_id": file_id})
     if not info.get("ok"):
         return False
     file_path = info.get("result", {}).get("file_path")
@@ -113,8 +105,16 @@ def handle_message(msg: dict):
     if not chat_id:
         return
 
+    # Whitelist-проверка: игнорируем сообщения от неавторизованных пользователей
+    if ALLOWED_CHAT_IDS and chat_id not in ALLOWED_CHAT_IDS:
+        return
+
     set_active_chat(chat_id, {"username": user})
-    cleanup_old_media()
+
+    global _message_counter
+    _message_counter += 1
+    if _message_counter % _CLEANUP_INTERVAL == 0:
+        cleanup_old_media()
 
     # 0. Обработка цитат и ответов (reply_to_message)
     reply_prefix = ""
@@ -123,7 +123,7 @@ def handle_message(msg: dict):
         if "voice" in reply_msg or "audio" in reply_msg:
             v_info = reply_msg.get("voice") or reply_msg.get("audio")
             v_fid = v_info.get("file_id")
-            dest_voice = os.path.join(MEDIA_DIR, f"reply_voice_{int(time.time())}.ogg")
+            dest_voice = os.path.join(MEDIA_DIR, f"reply_voice_{time.time_ns()}.ogg")
             if download_telegram_file(v_fid, dest_voice):
                 transcribed = transcribe_audio_file(dest_voice)
                 reply_prefix = f"↳ [В ответ на голосовое сообщение: «{transcribed}»]\n" if transcribed else "↳ [В ответ на голосовое сообщение]\n"
@@ -143,7 +143,7 @@ def handle_message(msg: dict):
         photo_sizes = msg.get("photo", [])
         if photo_sizes:
             file_id = photo_sizes[-1].get("file_id")
-            photo_path = os.path.join(MEDIA_DIR, f"incoming_photo_{int(time.time())}.png")
+            photo_path = os.path.join(MEDIA_DIR, f"incoming_photo_{time.time_ns()}.png")
             with ActionKeeper("upload_photo", chat_id):
                 if download_telegram_file(file_id, photo_path):
                     cap = msg.get("caption", "").strip()
@@ -158,7 +158,7 @@ def handle_message(msg: dict):
     elif "document" in msg:
         doc_info = msg.get("document", {})
         file_id = doc_info.get("file_id")
-        orig_name = doc_info.get("file_name", f"doc_{int(time.time())}.dat")
+        orig_name = doc_info.get("file_name", f"doc_{time.time_ns()}.dat")
         dest_path = os.path.join(MEDIA_DIR, f"incoming_{orig_name}")
         with ActionKeeper("upload_document", chat_id):
             if download_telegram_file(file_id, dest_path):
@@ -175,7 +175,7 @@ def handle_message(msg: dict):
         audio_info = msg.get("voice") or msg.get("audio")
         file_id = audio_info.get("file_id")
         with ActionKeeper("record_voice", chat_id):
-            voice_file = os.path.join(MEDIA_DIR, f"voice_{int(time.time())}.ogg")
+            voice_file = os.path.join(MEDIA_DIR, f"voice_{time.time_ns()}.ogg")
             if download_telegram_file(file_id, voice_file):
                 transcribed = transcribe_audio_file(voice_file)
                 if transcribed:
@@ -208,7 +208,7 @@ def handle_message(msg: dict):
 
 def run_bridge():
     print("Starting Telegram <-> Antigravity IDE Bridge Daemon (Refactored & Modular)...")
-    me = tg_api_call("getMe")
+    me = tg_api_post("getMe")
     if not me.get("ok"):
         print(f"Failed to connect to Telegram Bot API: {me}", file=sys.stderr)
         sys.exit(1)
@@ -226,7 +226,7 @@ def run_bridge():
             if offset is not None:
                 params["offset"] = offset
 
-            updates = tg_api_call("getUpdates", params)
+            updates = tg_api_post("getUpdates", params)
             if updates.get("ok"):
                 for upd in updates.get("result", []):
                     offset = upd.get("update_id") + 1
@@ -234,7 +234,7 @@ def run_bridge():
                         handle_message(upd["message"])
                     elif "callback_query" in upd:
                         cb = upd["callback_query"]
-                        tg_api_call("answerCallbackQuery", {"callback_query_id": cb.get("id")})
+                        tg_api_post("answerCallbackQuery", {"callback_query_id": cb.get("id")})
                         handle_message({
                             "chat": cb.get("message", {}).get("chat", {}),
                             "from": cb.get("from", {}),

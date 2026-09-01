@@ -2,7 +2,6 @@ import os
 import sys
 import time
 import json
-import urllib.request
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INBOX_FILE = os.path.join(BASE_DIR, "inbox.json")
@@ -22,7 +21,7 @@ def check_and_heal_lock_file(max_age_seconds: float = 5.0) -> bool:
     return False
 
 def check_and_heal_stale_inbox(max_unprocessed_seconds: float = 15.0) -> bool:
-    """Wakes up IDE receiver if messages are waiting in queue without being picked up."""
+    """Detects stale messages in inbox that haven't been picked up by bridge_receiver."""
     if os.path.exists(INBOX_FILE):
         try:
             with open(INBOX_FILE, "r", encoding="utf-8") as f:
@@ -31,13 +30,8 @@ def check_and_heal_stale_inbox(max_unprocessed_seconds: float = 15.0) -> bool:
                     oldest = data[0]
                     ts = oldest.get("timestamp", time.time())
                     if time.time() - ts > max_unprocessed_seconds:
-                        # Re-trigger IDE receiver
-                        try:
-                            req = urllib.request.Request("http://127.0.0.1:8080/wake", data=b'{"action":"heal"}')
-                            with urllib.request.urlopen(req, timeout=1):
-                                pass
-                        except Exception:
-                            pass
+                        # bridge_receiver — файловый вотчер, перезапуск не требуется.
+                        # Просто фиксируем факт залипания очереди.
                         return True
         except Exception:
             pass

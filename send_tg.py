@@ -38,16 +38,17 @@ def set_bot_commands(chat_id: int | str = None) -> bool:
     return True
 
 
-def tg_api_post(method: str, payload: dict) -> dict:
+def tg_api_post(method: str, payload: dict = None) -> dict:
     url = f"https://api.telegram.org/bot{TG_BOT_TOKEN}/{method}"
-    data = json.dumps(payload).encode("utf-8")
+    data = json.dumps(payload).encode("utf-8") if payload else None
+    headers = {"Content-Type": "application/json"} if payload else {}
     req = urllib.request.Request(
         url,
         data=data,
-        headers={"Content-Type": "application/json"}
+        headers=headers
     )
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=35) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except Exception as e:
         print(f"[Telegram API Error] {method}: {e}", file=sys.stderr)
