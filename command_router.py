@@ -73,7 +73,12 @@ def handle_status(chat_id: int | str, user: str, args: str = "") -> bool:
     from bridge_health_watchdog import run_self_healing_health_check
     diag = run_self_healing_health_check()
     v_status = "🔊 Включено" if is_voice_enabled() else "🔇 Выключено (только текст)"
-    heal_info = "🟢 Без сбоев" if not diag["lock_healed"] and not diag["inbox_healed"] else "🛠 Выполнено автовосстановление"
+    if diag.get("inbox_stale"):
+        heal_info = "⚠️ Очередь зависла"
+    elif diag.get("lock_healed"):
+        heal_info = "🛠 Выполнено автовосстановление (lock)"
+    else:
+        heal_info = "🟢 Без сбоев"
     send_message(
         f"🟢 **Antigravity IDE Bridge Health & Self-Healing**\n"
         f"• Статус моста: `Active / Healthy`\n"

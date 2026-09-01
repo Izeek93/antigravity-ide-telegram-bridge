@@ -12,3 +12,4 @@ edge-tts>=7.0.0
 
 # System utilities
 psutil>=5.9.0
+portalocker>=2.0.0

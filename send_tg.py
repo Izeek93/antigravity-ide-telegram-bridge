@@ -40,8 +40,8 @@ def set_bot_commands(chat_id: int | str = None) -> bool:
 
 def tg_api_post(method: str, payload: dict = None) -> dict:
     url = f"https://api.telegram.org/bot{TG_BOT_TOKEN}/{method}"
-    data = json.dumps(payload).encode("utf-8") if payload else None
-    headers = {"Content-Type": "application/json"} if payload else {}
+    data = json.dumps(payload).encode("utf-8") if payload is not None else None
+    headers = {"Content-Type": "application/json"} if payload is not None else {}
     req = urllib.request.Request(
         url,
         data=data,

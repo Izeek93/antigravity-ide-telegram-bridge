@@ -20,7 +20,7 @@ def check_and_heal_lock_file(max_age_seconds: float = 5.0) -> bool:
             pass
     return False
 
-def check_and_heal_stale_inbox(max_unprocessed_seconds: float = 15.0) -> bool:
+def check_stale_inbox(max_unprocessed_seconds: float = 15.0) -> bool:
     """Detects stale messages in inbox that haven't been picked up by bridge_receiver."""
     if os.path.exists(INBOX_FILE):
         try:
@@ -30,8 +30,6 @@ def check_and_heal_stale_inbox(max_unprocessed_seconds: float = 15.0) -> bool:
                     oldest = data[0]
                     ts = oldest.get("timestamp", time.time())
                     if time.time() - ts > max_unprocessed_seconds:
-                        # bridge_receiver — файловый вотчер, перезапуск не требуется.
-                        # Просто фиксируем факт залипания очереди.
                         return True
         except Exception:
             pass
@@ -40,7 +38,7 @@ def check_and_heal_stale_inbox(max_unprocessed_seconds: float = 15.0) -> bool:
 def run_self_healing_health_check() -> dict:
     """Executes full diagnostic and auto-remediation routine."""
     lock_healed = check_and_heal_lock_file()
-    inbox_healed = check_and_heal_stale_inbox()
+    inbox_stale = check_stale_inbox()
     
     inbox_count = 0
     if os.path.exists(INBOX_FILE):
@@ -53,7 +51,7 @@ def run_self_healing_health_check() -> dict:
     return {
         "status": "healthy",
         "lock_healed": lock_healed,
-        "inbox_healed": inbox_healed,
+        "inbox_stale": inbox_stale,
         "pending_inbox_messages": inbox_count,
         "timestamp": time.time()
     }
